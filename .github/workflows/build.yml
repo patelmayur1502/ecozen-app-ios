@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  XTL_CLI: "1"
+
 jobs:
   build:
     runs-on: macos-15
@@ -20,12 +23,8 @@ jobs:
           sudo rm -rf /Applications/xtool.app
           sudo cp -R xtool.app /Applications/
           sudo xattr -cr /Applications/xtool.app
-          sudo tee /usr/local/bin/xtool << 'EOF'
-          #!/bin/bash
-          exec /Applications/xtool.app/Contents/MacOS/xtool "$@"
-          EOF
-          sudo chmod +x /usr/local/bin/xtool
-          xtool --version || xtool --help
+          sudo ln -sf /Applications/xtool.app/Contents/Resources/bin/xtool /usr/local/bin/xtool
+          xtool --version
 
       - name: Build EcoZen iOS App & Package IPA
         run: |
