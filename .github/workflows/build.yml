@@ -13,17 +13,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_16.0.app
-
-      - name: Install xtool
+      - name: Install Pre-built xtool for macOS
         run: |
-          git clone https://github.com/xtool-org/xtool.git
-          cd xtool
-          swift build -c release
-          sudo cp .build/release/xtool /usr/local/bin/
+          curl -fL "https://github.com/xtool-org/xtool/releases/download/1.24.0/xtool.app.zip" -o xtool.zip
+          unzip -q xtool.zip
+          sudo cp -R xtool.app /Applications/
+          sudo ln -s /Applications/xtool.app/Contents/MacOS/xtool /usr/local/bin/xtool
+          xtool --help
 
-      - name: Build EcoZen App & Generate IPA
+      - name: Build EcoZen iOS App & Package IPA
         run: |
           xtool dev build --ipa
           mkdir -p build_output
