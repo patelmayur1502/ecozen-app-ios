@@ -8,3 +8,6 @@ DerivedData/
 .netrc
 /xtool-build
 
+
+xtool/
+
