@@ -1,0 +1,8 @@
+version: 1
+bundleID: in.ecozen.app
+product: EcoZen
+infoPath: Support/Info.plist
+entitlementsPath: Support/EcoZen.entitlements
+resources:
+  - Resources
+
