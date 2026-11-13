@@ -7,13 +7,13 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Pre-built xtool for macOS
+      - name: Install Pre-built xtool
         run: |
           curl -fL "https://github.com/xtool-org/xtool/releases/download/1.24.0/xtool.app.zip" -o xtool.zip
           unzip -q xtool.zip
@@ -22,4 +22,21 @@ jobs:
           sudo xattr -cr /Applications/xtool.app
           sudo tee /usr/local/bin/xtool << 'EOF'
           #!/bin/bash
-          exec /Applications/xtool.
+          exec /Applications/xtool.app/Contents/MacOS/xtool "$@"
+          EOF
+          sudo chmod +x /usr/local/bin/xtool
+          xtool --version || xtool --help
+
+      - name: Build EcoZen iOS App & Package IPA
+        run: |
+          xtool dev build --ipa
+          mkdir -p build_output
+          find . -name "*.ipa" -exec cp {} build_output/EcoZen.ipa \;
+          ls -la build_output/
+
+      - name: Upload EcoZen.ipa Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EcoZen-iOS-IPA
+          path: build_output/EcoZen.ipa
+          retention-days: 7
