@@ -24,9 +24,32 @@ public struct ProductCardView: View {
                     .fill(Color(uiColor: .secondarySystemBackground))
                     .frame(height: 120)
                     .overlay(
-                        Text(categoryEmoji(for: product.category ?? ""))
-                            .font(.system(size: 48))
+                        Group {
+                            if let imageUrl = product.image_url, let url = URL(string: imageUrl) {
+                                AsyncImage(url: url) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .scaledToFit()
+                                            .padding(8)
+                                    case .failure:
+                                        Text(categoryEmoji(for: product.category ?? ""))
+                                            .font(.system(size: 48))
+                                    case .empty:
+                                        ProgressView()
+                                    @unknown default:
+                                        Text(categoryEmoji(for: product.category ?? ""))
+                                            .font(.system(size: 48))
+                                    }
+                                }
+                            } else {
+                                Text(categoryEmoji(for: product.category ?? ""))
+                                    .font(.system(size: 48))
+                            }
+                        }
                     )
+                    .clipped()
                     .onTapGesture {
                         onSelect()
                     }
@@ -188,7 +211,7 @@ public struct ProductCardView: View {
 
     private func categoryEmoji(for category: String) -> String {
         let cat = category.lowercased()
-        if cat.contains("baggase") || cat.contains("tray") { return "🍱" }
+        if cat.contains("bagasse") || cat.contains("tray") { return "🍱" }
         if cat.contains("paper") || cat.contains("tub") { return "🥡" }
         if cat.contains("cutlery") || cat.contains("spoon") { return "🍴" }
         if cat.contains("bag") { return "🛍️" }
@@ -197,4 +220,3 @@ public struct ProductCardView: View {
         return "📦"
     }
 }
-

@@ -3,6 +3,7 @@ import SwiftUI
 public struct AccountView: View {
     @ObservedObject private var cartManager = CartManager.shared
     @Binding public var selectedTab: Int
+    @State private var showOrderTracking: Bool = false
 
     public init(selectedTab: Binding<Int>) {
         self._selectedTab = selectedTab
@@ -45,6 +46,11 @@ public struct AccountView: View {
             }
         }
         .background(Color(uiColor: .systemGroupedBackground))
+        .sheet(isPresented: $showOrderTracking) {
+            OrderTrackingView(selectedTab: $selectedTab, order: cartManager.lastOrder) {
+                showOrderTracking = false
+            }
+        }
     }
 
     private var profileHeaderCard: some View {
@@ -87,8 +93,8 @@ public struct AccountView: View {
 
     private var accountLinksSection: some View {
         VStack(spacing: 0) {
-            linkRow(icon: "receipt", title: "Order History & Invoices", badge: "2 Orders") {
-                selectedTab = 4 // Tracking view
+            linkRow(icon: "receipt", title: "Order History & Invoices", badge: cartManager.lastOrder != nil ? "1 Active" : "View") {
+                showOrderTracking = true
             }
             Divider().padding(.leading, 44)
 
@@ -142,6 +148,11 @@ public struct AccountView: View {
     private var whatsappSupportCard: some View {
         Button(action: {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            let msg = "Hello EcoZen, I'd like to talk to Goa Dispatch regarding my restaurant account."
+            if let encoded = msg.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+               let url = URL(string: "https://wa.me/919822123456?text=\(encoded)") {
+                UIApplication.shared.open(url)
+            }
         }) {
             HStack(spacing: 12) {
                 Image(systemName: "message.circle.fill")
@@ -204,4 +215,3 @@ public struct AccountView: View {
         .padding(.vertical, 12)
     }
 }
-

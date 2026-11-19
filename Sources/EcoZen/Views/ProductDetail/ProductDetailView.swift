@@ -59,9 +59,32 @@ public struct ProductDetailView: View {
                             .fill(Color(uiColor: .secondarySystemBackground))
                             .frame(height: 220)
                             .overlay(
-                                Text(productEmoji)
-                                    .font(.system(size: 84))
+                                Group {
+                                    if let imageUrl = product.image_url, let url = URL(string: imageUrl) {
+                                        AsyncImage(url: url) { phase in
+                                            switch phase {
+                                            case .success(let image):
+                                                image
+                                                    .resizable()
+                                                    .scaledToFit()
+                                                    .padding(16)
+                                            case .failure:
+                                                Text(productEmoji)
+                                                    .font(.system(size: 84))
+                                            case .empty:
+                                                ProgressView()
+                                            @unknown default:
+                                                Text(productEmoji)
+                                                    .font(.system(size: 84))
+                                            }
+                                        }
+                                    } else {
+                                        Text(productEmoji)
+                                            .font(.system(size: 84))
+                                    }
+                                }
                             )
+                            .clipped()
 
                         HStack(spacing: 6) {
                             Text("100% COMPOSTABLE")

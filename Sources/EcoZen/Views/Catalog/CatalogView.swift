@@ -5,7 +5,6 @@ public struct CatalogView: View {
     @Binding public var activeProduct: Product?
     @Binding public var selectedTab: Int
 
-    @State private var selectedCategorySlug: String = "all"
     @State private var selectedMaterial: String = "all"
 
     public init(activeProduct: Binding<Product?>, selectedTab: Binding<Int>) {
@@ -16,16 +15,20 @@ public struct CatalogView: View {
     private var filteredProducts: [Product] {
         var list = catalogService.allProducts
 
-        if selectedCategorySlug != "all" {
-            let cat = catalogService.categories.first(where: { $0.slug == selectedCategorySlug })?.name ?? ""
-            list = list.filter { ($0.category?.lowercased().contains(cat.lowercased()) ?? false) }
+        if catalogService.selectedCategorySlug != "all" {
+            let catName = catalogService.categories.first(where: { $0.slug == catalogService.selectedCategorySlug })?.name.lowercased() ?? ""
+            list = list.filter { p in
+                let pCat = (p.category ?? "").lowercased()
+                let pCatId = p.category_id ?? ""
+                return pCat.contains(catName) || pCatId == catalogService.selectedCategorySlug
+            }
         }
 
         if selectedMaterial != "all" {
             list = list.filter { ($0.material?.lowercased().contains(selectedMaterial.lowercased()) ?? false) }
         }
 
-        return list.isEmpty ? catalogService.allProducts : list
+        return list
     }
 
     public var body: some View {
@@ -36,9 +39,19 @@ public struct CatalogView: View {
             VStack(spacing: 0) {
                 // Top Nav
                 HStack {
-                    Text("Product Catalog")
-                        .font(.system(size: 20, weight: .black))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Product Catalog")
+                            .font(.system(size: 20, weight: .black))
+                        if catalogService.selectedCategorySlug != "all" {
+                            let currentCat = catalogService.categories.first(where: { $0.slug == catalogService.selectedCategorySlug })?.name ?? "Category Filtered"
+                            Text("Showing: \(currentCat)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(Color(red: 0.08, green: 0.64, blue: 0.29))
+                        }
+                    }
+
                     Spacer()
+
                     Text("\(filteredProducts.count) Items")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.secondary)
@@ -48,18 +61,33 @@ public struct CatalogView: View {
                 .padding(.bottom, 8)
                 .background(Color(uiColor: .systemBackground))
 
+                // Category Quick Filter Bar
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        categoryFilterPill(title: "All Categories", slug: "all", emoji: "🏷️")
+                        ForEach(catalogService.categories) { cat in
+                            categoryFilterPill(title: cat.name, slug: cat.slug, emoji: cat.displayEmoji)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                }
+                .background(Color(uiColor: .systemBackground))
+
                 // Material Quick Filters
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        materialFilterPill(title: "All", tag: "all")
+                        materialFilterPill(title: "All Materials", tag: "all")
                         materialFilterPill(title: "Sugarcane Bagasse", tag: "bagasse")
                         materialFilterPill(title: "Kraft Paper", tag: "kraft")
                         materialFilterPill(title: "Birchwood", tag: "birch")
                     }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
                 }
                 .background(Color(uiColor: .systemBackground))
+
+                Divider()
 
                 // Catalog Scrollable Content
                 ScrollView(.vertical, showsIndicators: false) {
@@ -67,15 +95,47 @@ public struct CatalogView: View {
                         // Sample Kit Promo (₹49)
                         sampleKitPromoBanner
 
-                        // Product Grid
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                            ForEach(filteredProducts) { product in
-                                ProductCardView(product: product) {
-                                    activeProduct = product
+                        if filteredProducts.isEmpty {
+                            // Empty State
+                            VStack(spacing: 12) {
+                                Text("🔍")
+                                    .font(.system(size: 44))
+                                Text("No Products Found")
+                                    .font(.system(size: 15, weight: .black))
+                                Text("No items match the selected category and material filters.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 32)
+
+                                Button(action: {
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                    catalogService.selectedCategorySlug = "all"
+                                    selectedMaterial = "all"
+                                }) {
+                                    Text("Reset All Filters")
+                                        .font(.system(size: 11, weight: .black))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(Color(red: 0.08, green: 0.64, blue: 0.29))
+                                        .cornerRadius(8)
+                                }
+                                .padding(.top, 4)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                        } else {
+                            // Product Grid
+                            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                                ForEach(filteredProducts) { product in
+                                    ProductCardView(product: product) {
+                                        activeProduct = product
+                                    }
                                 }
                             }
+                            .padding(.horizontal, 16)
                         }
-                        .padding(.horizontal, 16)
 
                         Spacer().frame(height: 90)
                     }
@@ -89,17 +149,38 @@ public struct CatalogView: View {
         }
     }
 
+    private func categoryFilterPill(title: String, slug: String, emoji: String) -> some View {
+        let isSelected = catalogService.selectedCategorySlug == slug
+        return Button(action: {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            catalogService.selectedCategorySlug = slug
+        }) {
+            HStack(spacing: 4) {
+                Text(emoji)
+                    .font(.system(size: 12))
+                Text(title)
+                    .font(.system(size: 11, weight: isSelected ? .black : .medium))
+            }
+            .foregroundColor(isSelected ? .white : .primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isSelected ? Color(red: 0.08, green: 0.64, blue: 0.29) : Color(uiColor: .secondarySystemFill))
+            .cornerRadius(12)
+        }
+    }
+
     private func materialFilterPill(title: String, tag: String) -> some View {
-        Button(action: {
+        let isSelected = selectedMaterial == tag
+        return Button(action: {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             selectedMaterial = tag
         }) {
             Text(title)
-                .font(.system(size: 11, weight: selectedMaterial == tag ? .black : .medium))
-                .foregroundColor(selectedMaterial == tag ? .white : .primary)
+                .font(.system(size: 11, weight: isSelected ? .black : .medium))
+                .foregroundColor(isSelected ? .white : .primary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(selectedMaterial == tag ? Color(red: 0.08, green: 0.64, blue: 0.29) : Color(uiColor: .secondarySystemFill))
+                .background(isSelected ? Color(red: 0.08, green: 0.64, blue: 0.29) : Color(uiColor: .secondarySystemFill))
                 .cornerRadius(12)
         }
     }
@@ -150,4 +231,3 @@ public struct CatalogView: View {
         .padding(.horizontal, 16)
     }
 }
-

@@ -2,19 +2,26 @@ import SwiftUI
 
 public struct OrderTrackingView: View {
     @Binding public var selectedTab: Int
+    public var onDismiss: (() -> Void)?
 
-    @State private var currentOrder = OrderRecord(
-        id: "ord-9284",
-        orderNumber: "EZP-9284",
-        totalAmount: 8070.0,
-        itemCount: 2
-    )
-
+    @State private var currentOrder: OrderRecord
     @State private var showCancelConfirmation: Bool = false
     @State private var isCancelled: Bool = false
 
-    public init(selectedTab: Binding<Int>) {
+    public init(
+        selectedTab: Binding<Int>,
+        order: OrderRecord? = nil,
+        onDismiss: (() -> Void)? = nil
+    ) {
         self._selectedTab = selectedTab
+        self.onDismiss = onDismiss
+        let initialOrder = order ?? CartManager.shared.lastOrder ?? OrderRecord(
+            id: "ord-9284",
+            orderNumber: "EZP-9284",
+            totalAmount: 8070.0,
+            itemCount: 2
+        )
+        self._currentOrder = State(initialValue: initialOrder)
     }
 
     public var body: some View {
@@ -22,7 +29,11 @@ public struct OrderTrackingView: View {
             // Navbar
             HStack {
                 Button(action: {
-                    selectedTab = 0
+                    if let onDismiss {
+                        onDismiss()
+                    } else {
+                        selectedTab = 0
+                    }
                 }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .bold))
@@ -36,7 +47,13 @@ public struct OrderTrackingView: View {
 
                 Spacer()
 
-                Button(action: {}) {
+                Button(action: {
+                    let msg = "Hello EcoZen, I need support with Order #\(currentOrder.orderNumber)"
+                    if let encoded = msg.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                       let url = URL(string: "https://wa.me/919822123456?text=\(encoded)") {
+                        UIApplication.shared.open(url)
+                    }
+                }) {
                     Image(systemName: "headphones")
                         .font(.system(size: 15))
                         .foregroundColor(Color(red: 0.08, green: 0.64, blue: 0.29))
@@ -179,7 +196,14 @@ public struct OrderTrackingView: View {
 
             Spacer()
 
-            Button(action: {}) {
+            Button(action: {
+                if let phone = currentOrder.borzoCourierPhone {
+                    let cleaned = phone.replacingOccurrences(of: " ", with: "")
+                    if let url = URL(string: "tel://\(cleaned)") {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }) {
                 Circle()
                     .fill(Color(red: 0.08, green: 0.64, blue: 0.29).opacity(0.12))
                     .frame(width: 36, height: 36)
@@ -198,6 +222,12 @@ public struct OrderTrackingView: View {
     private var whatsappInvoiceButton: some View {
         Button(action: {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            let invoice = currentOrder.gstInvoiceNumber ?? currentOrder.orderNumber
+            let msg = "Hello EcoZen, please share the GST tax invoice PDF for order \(invoice)."
+            if let encoded = msg.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+               let url = URL(string: "https://wa.me/919822123456?text=\(encoded)") {
+                UIApplication.shared.open(url)
+            }
         }) {
             HStack(spacing: 10) {
                 Image(systemName: "message.fill")
@@ -249,6 +279,11 @@ public struct OrderTrackingView: View {
 
                 Button(action: {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    let msg = "Hello EcoZen, I'd like to request a return for items in Order #\(currentOrder.orderNumber)."
+                    if let encoded = msg.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                       let url = URL(string: "https://wa.me/919822123456?text=\(encoded)") {
+                        UIApplication.shared.open(url)
+                    }
                 }) {
                     Text("Request Return")
                         .font(.system(size: 11, weight: .bold))
@@ -270,4 +305,3 @@ public struct OrderTrackingView: View {
         .cornerRadius(18)
     }
 }
-

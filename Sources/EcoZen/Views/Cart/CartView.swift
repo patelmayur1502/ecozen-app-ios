@@ -4,7 +4,7 @@ public struct CartView: View {
     @ObservedObject private var cartManager = CartManager.shared
     @Binding public var selectedTab: Int
     @State private var couponInput: String = ""
-    @State private var showOrderPlacedAlert: Bool = false
+    @State private var showOrderTracking: Bool = false
 
     public init(selectedTab: Binding<Int>) {
         self._selectedTab = selectedTab
@@ -65,6 +65,11 @@ public struct CartView: View {
             }
         }
         .background(Color(uiColor: .systemGroupedBackground))
+        .sheet(isPresented: $showOrderTracking) {
+            OrderTrackingView(selectedTab: $selectedTab, order: cartManager.lastOrder) {
+                showOrderTracking = false
+            }
+        }
     }
 
     private var emptyCartView: some View {
@@ -125,7 +130,24 @@ public struct CartView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color(uiColor: .secondarySystemBackground))
                         .frame(width: 48, height: 48)
-                        .overlay(Text("🍱").font(.system(size: 24)))
+                        .overlay(
+                            Group {
+                                if let img = item.product.image_url, let url = URL(string: img) {
+                                    AsyncImage(url: url) { phase in
+                                        if let image = phase.image {
+                                            image.resizable().scaledToFit().padding(4)
+                                        } else {
+                                            Text(categoryEmoji(for: item.product.category ?? ""))
+                                                .font(.system(size: 24))
+                                        }
+                                    }
+                                } else {
+                                    Text(categoryEmoji(for: item.product.category ?? ""))
+                                        .font(.system(size: 24))
+                                }
+                            }
+                        )
+                        .clipped()
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(item.product.name)
@@ -177,6 +199,17 @@ public struct CartView: View {
                 .cornerRadius(16)
             }
         }
+    }
+
+    private func categoryEmoji(for category: String) -> String {
+        let cat = category.lowercased()
+        if cat.contains("bagasse") || cat.contains("tray") { return "🍱" }
+        if cat.contains("paper") || cat.contains("tub") { return "🥡" }
+        if cat.contains("cutlery") || cat.contains("spoon") { return "🍴" }
+        if cat.contains("bag") { return "🛍️" }
+        if cat.contains("candle") { return "🕯️" }
+        if cat.contains("hygiene") || cat.contains("spray") { return "🧼" }
+        return "📦"
     }
 
     private var gstInvoiceSection: some View {
@@ -240,8 +273,9 @@ public struct CartView: View {
 
             Button(action: {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                if couponInput.uppercased() == "ECOGOA" {
+                if couponInput.trimmingCharacters(in: .whitespaces).uppercased() == "ECOGOA" {
                     cartManager.discountAmount = 100.0
+                    cartManager.couponCode = "ECOGOA"
                 }
             }) {
                 Text("APPLY")
@@ -309,7 +343,7 @@ public struct CartView: View {
             summaryRow(label: "Item Total", value: String(format: "₹%.2f", cartManager.subtotal))
 
             if cartManager.discountAmount > 0 {
-                summaryRow(label: "Coupon Discount", value: String(format: "-₹%.2f", cartManager.discountAmount), isDiscount: true)
+                summaryRow(label: "Coupon Discount (\(cartManager.couponCode))", value: String(format: "-₹%.2f", cartManager.discountAmount), isDiscount: true)
             }
 
             summaryRow(label: "Borzo Hyperlocal Delivery", value: cartManager.deliveryFee == 0 ? "FREE" : "₹95.00", isFree: cartManager.deliveryFee == 0)
@@ -361,9 +395,11 @@ public struct CartView: View {
 
             Spacer()
 
-            Text("Change")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(Color(red: 0.08, green: 0.64, blue: 0.29))
+            Button("Change") {
+                selectedTab = 4 // Go to Account
+            }
+            .font(.system(size: 11, weight: .bold))
+            .foregroundColor(Color(red: 0.08, green: 0.64, blue: 0.29))
         }
         .padding(12)
         .background(Color(uiColor: .systemBackground))
@@ -374,8 +410,8 @@ public struct CartView: View {
         VStack(spacing: 0) {
             Button(action: {
                 UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                // Transition directly to Live Tracking
-                selectedTab = 4
+                cartManager.createOrderFromCart()
+                showOrderTracking = true
             }) {
                 HStack {
                     VStack(alignment: .leading, spacing: 1) {
@@ -408,4 +444,3 @@ public struct CartView: View {
         .shadow(color: Color.black.opacity(0.04), radius: 6, y: -2)
     }
 }
-

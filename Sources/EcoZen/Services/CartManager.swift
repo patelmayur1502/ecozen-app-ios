@@ -12,26 +12,10 @@ public final class CartManager: ObservableObject, @unchecked Sendable {
     @Published public var gstinNumber: String = "30AABCE1234F1Z8"
     @Published public var businessName: String = "Cafe Horizon LLP"
     @Published public var deliveryAddress: String = "Cafe Horizon, Anjuna Beach Rd, North Goa"
+    @Published public var lastOrder: OrderRecord? = nil
 
     public init() {
-        // Seed default items matching real restaurant test orders
-        let defaultProduct1 = CatalogService.shared.allProducts.first ?? Product(
-            id: 101,
-            name: "CHUK 500ml Square Container",
-            loose_price: 665.60,
-            box_price: 5824.00
-        )
-        let defaultProduct2 = CatalogService.shared.allProducts.dropFirst().first ?? Product(
-            id: 102,
-            name: "750ml White Paper Tub with Lid",
-            loose_price: 990.00,
-            box_price: 8700.00
-        )
-
-        self.items = [
-            CartItem(product: defaultProduct1, unit: .box, quantity: 1),
-            CartItem(product: defaultProduct2, unit: .loose, quantity: 1)
-        ]
+        self.items = []
     }
 
     public var totalItemCount: Int {
@@ -54,12 +38,16 @@ public final class CartManager: ObservableObject, @unchecked Sendable {
         max(0.0, SupabaseConfig.freeDeliveryThreshold - subtotal)
     }
 
+    public var taxableSubtotal: Double {
+        max(0.0, subtotal - discountAmount)
+    }
+
     public var gstAmount: Double {
-        subtotal * 0.18
+        taxableSubtotal * 0.18
     }
 
     public var grandTotal: Double {
-        max(0.0, subtotal - discountAmount) + deliveryFee + gstAmount + riderTip
+        taxableSubtotal + deliveryFee + gstAmount + riderTip
     }
 
     public func add(product: Product, unit: PackagingUnit = .loose, quantity: Int = 1) {
@@ -86,6 +74,33 @@ public final class CartManager: ObservableObject, @unchecked Sendable {
 
     public func clear() {
         items.removeAll()
+        discountAmount = 0.0
+        couponCode = ""
+    }
+
+    @discardableResult
+    public func createOrderFromCart() -> OrderRecord {
+        let orderNum = "EZP-\(Int.random(in: 1000...9999))"
+        let currentMonth = Calendar.current.component(.month, from: Date())
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let invoiceNum = String(format: "EZP-%04d%02d-%04d", currentYear, currentMonth, Int.random(in: 100...999))
+
+        let newOrder = OrderRecord(
+            id: orderNum,
+            orderNumber: orderNum,
+            createdAt: Date(),
+            status: .outForDelivery,
+            totalAmount: grandTotal,
+            itemCount: totalItemCount,
+            borzoCourierName: "Rajesh Naik",
+            borzoCourierPhone: "+91 98221 23456",
+            borzoVehicle: "Activa (GA-03-9214)",
+            etaMinutes: 26,
+            deliveryAddress: deliveryAddress,
+            gstInvoiceNumber: invoiceNum
+        )
+        self.lastOrder = newOrder
+        self.clear()
+        return newOrder
     }
 }
-

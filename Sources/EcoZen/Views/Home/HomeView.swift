@@ -225,7 +225,8 @@ public struct HomeView: View {
 
                 Spacer()
 
-                Button("View All (14)") {
+                Button("View All (\(catalogService.categories.count))") {
+                    catalogService.selectedCategorySlug = "all"
                     selectedTab = 1 // Catalog Tab
                 }
                 .font(.system(size: 11, weight: .bold))
@@ -237,6 +238,8 @@ public struct HomeView: View {
                 HStack(spacing: 12) {
                     ForEach(catalogService.categories) { cat in
                         Button(action: {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            catalogService.selectedCategorySlug = cat.slug
                             selectedTab = 1
                         }) {
                             VStack(spacing: 6) {
@@ -245,7 +248,7 @@ public struct HomeView: View {
                                     .frame(width: 58, height: 58)
                                     .shadow(color: Color.black.opacity(0.04), radius: 4, y: 2)
                                     .overlay(
-                                        Text(cat.emoji)
+                                        Text(cat.displayEmoji)
                                             .font(.system(size: 26))
                                     )
 
